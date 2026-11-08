@@ -1,0 +1,22 @@
+
+# Environnement virtuel Python
+.venv/
+venv/
+env/
+
+# Fichiers Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Données sensibles et fichiers volumineux
+.env
+*.log
+*.gz
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Résultats générés
+results/
