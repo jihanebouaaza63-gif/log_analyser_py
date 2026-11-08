@@ -20,5 +20,6 @@ Thumbs.db
 
 # Résultats générés
 results/
+logs/
 .pytest_tmp/
 data/

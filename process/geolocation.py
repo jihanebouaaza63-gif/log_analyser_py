@@ -37,10 +37,7 @@ def _public_ip(value):
         or address.is_reserved
         or address.is_unspecified
     ):
-        logger.debug(
-            "Geolocation skipped: non-public IP operation=validate_ip ip=%s",
-            address,
-        )
+        logger.debug("Geolocation skipped: non-public IP operation=validate_ip")
         return None
 
     return str(address)
@@ -58,6 +55,7 @@ def get_location(ip):
 
     cached = _LOCATION_CACHE.get(public_ip)
     if cached is not None:
+        logger.debug("Geolocation cache hit")
         return cached.copy()
 
     try:
@@ -112,10 +110,8 @@ def get_location(ip):
 
     except requests.exceptions.RequestException as error:
         logger.error(
-            "IPinfo network request failed: error_type=%s "
-            "operation=http_request ip=%s",
+            "IPinfo network request failed: error_type=%s operation=http_request",
             type(error).__name__,
-            public_ip,
         )
         return None
 
@@ -124,18 +120,15 @@ def get_location(ip):
 
     except ValueError as error:
         logger.error(
-            "IPinfo returned invalid JSON: error_type=%s "
-            "operation=parse_json ip=%s",
+            "IPinfo returned invalid JSON: error_type=%s operation=parse_json",
             type(error).__name__,
-            public_ip,
         )
         return None
 
     if not isinstance(payload, dict):
         logger.error(
             "IPinfo returned unexpected JSON: error_type=InvalidPayload "
-            "cause=expected_object operation=validate_json ip=%s",
-            public_ip,
+            "cause=expected_object operation=validate_json",
         )
         return None
 
@@ -152,6 +145,7 @@ def get_location(ip):
     }
 
     _LOCATION_CACHE[public_ip] = location
+    logger.info("IPinfo geolocation lookup completed")
 
     return location.copy()
 
@@ -187,10 +181,11 @@ def enrich_events(events):
                 else:
                     enriched_event["geolocation"] = None
 
-            except Exception:
+            except Exception as error:
                 logger.error(
-                    "Event geolocation failed: error_type=GeolocationError "
+                    "Event geolocation failed: error_type=%s "
                     "operation=enrich_event index=%s",
+                    type(error).__name__,
                     index,
                 )
                 enriched_event["geolocation"] = None

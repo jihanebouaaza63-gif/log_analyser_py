@@ -21,6 +21,7 @@ def toRows(path):
     Invalid UTF-8 bytes are replaced rather than stopping the import.
     """
     directory = Path(path)
+    logger.debug("Starting log discovery operation=list_directory")
     try:
         candidates = sorted(directory.iterdir(), key=lambda item: item.name)
     except OSError as error:
@@ -34,10 +35,12 @@ def toRows(path):
         return []
 
     rows = []
+    selected_files = 0
     for file_path in candidates:
         if not file_path.is_file() or not _AUTH_LOG_NAME.match(file_path.name):
             continue
 
+        selected_files += 1
         opener = gzip.open if file_path.name.endswith(".gz") else open
         try:
             with opener(file_path, mode="rt", encoding="utf-8", errors="replace") as log_file:
@@ -51,6 +54,7 @@ def toRows(path):
                 exc_info=True,
             )
 
+    logger.info("Log ingestion completed files=%d rows=%d", selected_files, len(rows))
     return rows
 
 

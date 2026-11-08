@@ -38,6 +38,7 @@ def test_cli_no_enrich_builds_dashboard_from_parsed_pipeline_events(tmp_path):
         assert main([
             "--input-dir", str(input_dir),
             "--output-dir", str(output_dir),
+            "--log-dir", str(tmp_path / "logs"),
             "--no-enrich",
         ]) == 0
 
@@ -75,7 +76,7 @@ def test_full_pipeline_uses_mocked_geolocation_and_real_parsed_events(tmp_path):
         return response
 
     with patch.object(geolocation.requests, "get", side_effect=mocked_ipinfo) as http_get:
-        summary = run_pipeline(input_dir, output_dir, enrich=True)
+        summary = run_pipeline(input_dir, output_dir, enrich=True, log_dir=tmp_path / "logs")
 
     assert http_get.call_count == 3
     assert summary["failed_attempts_by_country"] == {"AU": 1, "US": 1}
@@ -96,4 +97,8 @@ def test_dashboard_write_errors_are_propagated(tmp_path):
 
     with patch("main.enrich_events"):
         with pytest.raises(FileExistsError):
-            run_pipeline(input_dir, output_path, enrich=False)
+            run_pipeline(input_dir, output_path, enrich=False, log_dir=tmp_path / "logs")
+
+    log_text = (tmp_path / "logs" / "pipeline.log").read_text(encoding="utf-8")
+    assert "Dashboard output failed: error_type=FileExistsError" in log_text
+    assert log_text.count("Dashboard output failed") == 1

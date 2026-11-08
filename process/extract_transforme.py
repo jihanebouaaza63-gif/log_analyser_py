@@ -64,14 +64,13 @@ _SSH_OTHER_PATTERNS = (
 )
 
 
-def _log_missing_fields(original_line, event_type, fields):
+def _log_missing_fields(event_type, fields):
     missing = [name for name, value in fields if value is None]
     if missing:
         logger.warning(
-            "Log field missing: event_type=%s fields=%s operation=extract_event line=%r",
+            "Log field missing: event_type=%s fields=%s operation=extract_event",
             event_type,
             ",".join(missing),
-            original_line,
         )
 
 
@@ -85,8 +84,7 @@ def extract_from_row(row):
         if not match:
             logger.warning(
                 "Unrecognized log line: error_type=HeaderNotRecognized "
-                "cause=expected_syslog_header operation=parse_header line=%r",
-                row,
+                "cause=expected_syslog_header operation=parse_header",
             )
             return None
 
@@ -97,9 +95,8 @@ def extract_from_row(row):
             datetime.strptime(f"{timestamp} 2000", "%b %d %H:%M:%S %Y")
         except ValueError as error:
             logger.warning(
-                "Invalid log date: error_type=%s cause=%s operation=validate_timestamp "
-                "timestamp=%r line=%r",
-                type(error).__name__, error, timestamp, row,
+                "Invalid log date: error_type=%s operation=validate_timestamp",
+                type(error).__name__,
             )
             return None
 
@@ -109,6 +106,8 @@ def extract_from_row(row):
         username = source_ip = source_port = None
         invalid_user = False
         counts_as_attempt = False
+        invalid_source_ip = False
+        invalid_source_port = False
 
         for candidate_type, candidate_result, pattern in _AUTH_PATTERNS:
             event_match = pattern.match(message)
@@ -152,8 +151,7 @@ def extract_from_row(row):
         if event_type is None:
             logger.warning(
                 "Unrecognized log line: error_type=EventNotRecognized "
-                "cause=no_supported_event_pattern operation=classify_event line=%r",
-                row,
+                "cause=no_supported_event_pattern operation=classify_event",
             )
             return None
 
@@ -173,10 +171,10 @@ def extract_from_row(row):
             try:
                 ipaddress.ip_address(source_ip)
             except ValueError as error:
+                invalid_source_ip = True
                 logger.warning(
-                    "Invalid source IP: error_type=%s cause=%s operation=validate_ip "
-                    "address=%r line=%r",
-                    type(error).__name__, error, source_ip, row,
+                    "Invalid source IP: error_type=%s operation=validate_ip",
+                    type(error).__name__,
                 )
                 source_ip = None
 
@@ -186,9 +184,10 @@ def extract_from_row(row):
                 if not 0 <= source_port <= 65535:
                     raise ValueError("port outside valid range 0-65535")
             except ValueError as error:
+                invalid_source_port = True
                 logger.warning(
-                    "Invalid source port: error_type=%s cause=%s operation=validate_port line=%r",
-                    type(error).__name__, error, row,
+                    "Invalid source port: error_type=%s operation=validate_port",
+                    type(error).__name__,
                 )
                 source_port = None
 
@@ -197,9 +196,12 @@ def extract_from_row(row):
             "ssh_failed_keyboard_interactive", "ssh_invalid_user",
         }:
             _log_missing_fields(
-                row,
                 event_type,
-                (("username", username), ("source_ip", source_ip), ("source_port", source_port)),
+                (
+                    ("username", username),
+                    ("source_ip", source_ip if not invalid_source_ip else "<invalid>"),
+                    ("source_port", source_port if not invalid_source_port else "<invalid>"),
+                ),
             )
 
         return {
@@ -219,8 +221,7 @@ def extract_from_row(row):
     except Exception:
         logger.exception(
             "Log transformation failed: error_type=TransformationError "
-            "operation=extract_from_row line=%r",
-            row,
+            "operation=extract_from_row",
         )
         return None
 

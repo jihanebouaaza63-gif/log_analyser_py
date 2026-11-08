@@ -106,6 +106,7 @@ def test_invalid_ip_is_rejected_and_logged(caplog):
     assert event["source_ip"] is None
     assert event["counts_as_attempt"] is True
     assert "Invalid source IP" in caplog.text
+    assert "Log field missing" not in caplog.text
 
 
 def test_out_of_range_port_is_rejected_and_logged(caplog):
@@ -117,6 +118,7 @@ def test_out_of_range_port_is_rejected_and_logged(caplog):
     assert event is not None
     assert event["source_port"] is None
     assert "Invalid source port" in caplog.text
+    assert "Log field missing" not in caplog.text
 
 
 def test_extract_processes_multiple_lines_and_skips_unrecognized(caplog):

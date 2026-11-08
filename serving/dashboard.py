@@ -2,6 +2,7 @@
 
 import html
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from pathlib import Path
 UNKNOWN_COUNTRY = "Inconnu / non enrichi"
 MULTIPLE_COUNTRIES = "Plusieurs pays"
 UNKNOWN_USER = "Inconnu / utilisateur absent"
+logger = logging.getLogger(__name__)
 
 
 def _source_ips(event):
@@ -224,14 +226,22 @@ def render_dashboard(summary):
 def build_dashboard(events, output_dir):
     """Write summary.json and index.html from the same event aggregates."""
     output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
     summary = aggregate_events(events)
-    (output_path / "summary.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    (output_path / "index.html").write_text(
-        render_dashboard(summary),
-        encoding="utf-8",
-    )
+    dashboard_html = render_dashboard(summary)
+    try:
+        output_path.mkdir(parents=True, exist_ok=True)
+        (output_path / "summary.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (output_path / "index.html").write_text(
+            dashboard_html,
+            encoding="utf-8",
+        )
+    except OSError as error:
+        logger.error(
+            "Dashboard output failed: error_type=%s operation=write_output_files",
+            type(error).__name__,
+        )
+        raise
     return summary
